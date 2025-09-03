@@ -50,7 +50,7 @@ async def add_or_update_medicine(medicine: Medicine, db=Depends(get_db)):
         medicine_dict = medicine.dict()
         await medicines_collection.insert_one(medicine_dict)
         return medicine_dict
-
+       
 @app.get("/medicines", response_model=List[Medicine])
 async def list_medicines(db=Depends(get_db)):
     """
@@ -59,6 +59,8 @@ async def list_medicines(db=Depends(get_db)):
     medicines = await medicines_collection.find().to_list(100)
     return medicines
 
+
+
 #ORDER ENDPOINTS
 
 @app.post("/create-order", response_model=Order)
@@ -66,30 +68,35 @@ async def create_order(order: Order, db=Depends(get_db)):
     """
     Create a new order:
     - Status will be 'pending'
-    - Get list of bins from medicine names
+    - Build bins dict with total quantities per bin
     """
-    bins = []
+    bins = {}
+
     for item in order.items:
         medicine = await medicines_collection.find_one({"name": item.medicine_name})
         if not medicine:
             raise HTTPException(status_code=404, detail=f"Medicine '{item.medicine_name}' not found")
-        bins.append(medicine["bin"])
-    
+
+        bin_id = medicine["bin"]
+        bins[bin_id] = bins.get(bin_id, 0) + item.quantity
+
     order_dict = order.dict()
     order_dict["status"] = "pending"
-    order_dict["bins"] = bins
-    
+    order_dict["bins"] = bins  # store as dict {bin_id: total_quantity}
+
     await orders_collection.insert_one(order_dict)
-    
     return order_dict
 
-@app.get("/orders", response_model=List[Order])
+@app.get("/orders", response_model=List[dict])
 async def list_orders(db=Depends(get_db)):
     """
     Get a list of all orders in the database
     """
     orders = await orders_collection.find().to_list(100)  # limit to 100 for now
-    return orders
+    orders_serialized = [
+        {**order, "_id": str(order["_id"])} for order in orders
+    ]
+    return orders_serialized
 
 # Predefined picker colours
 PICKER_COLORS = ["red", "green", "blue"]
@@ -150,7 +157,6 @@ async def get_active_orders(db=Depends(get_db)):
         {**order, "_id": str(order["_id"])} for order in active_orders
     ]
     return active_orders_serialized
-
 
 @app.post("/complete-order/{order_id}", response_model=dict)
 async def complete_order(order_id: str, db=Depends(get_db)):

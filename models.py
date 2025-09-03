@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 
 class Medicine(BaseModel):
@@ -14,7 +14,7 @@ class Order(BaseModel):
     items: List[OrderItem] = Field(..., description="List of medicines with quantities")
     colour: Optional[str] = None
     status: str = "pending"
-    bins: Optional[List[str]] = None
+    bins: Optional[Dict[str, int]] = None
 
 class QRPayload(BaseModel):
     name: str = Field(..., description="Name of the medicine")
