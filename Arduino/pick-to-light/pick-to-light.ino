@@ -6,11 +6,11 @@
 #include <MD_MAX72xx.h>
 
 // ====== WiFi Credentials ======
-char ssid[] = "Airtel_siyo_2650";
-char pass[] = "air81636";
+char ssid[] = "realme 10";
+char pass[] = "12345678";
 
 // ====== Backend Config ======
-const char* serverAddress = "192.168.1.4";  // Your FastAPI backend IP
+const char* serverAddress = "10.38.234.197";  // Your FastAPI backend IP
 int serverPort = 8000;
 String apiPath = "/active-orders";  // <-- matches FastAPI route
 

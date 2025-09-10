@@ -27,18 +27,56 @@ async def test_endpoint():
     return {"message": "API is working!"}
 
 # MEDICINE ENDPOINTS
+
+DEFAULT_BIN_MAP = {
+    "Paracetamol": "A1",
+    "acetaminophen": "A2", 
+    "covaxin": "A3",
+    "covishield": "B1",
+    "aspirin": "B2",
+    "azithromycin": "B3",
+    "default": "A1"  
+}
+
+def choose_bin(payload: dict, bin_map: dict | None = None) -> tuple[str, str]:
+    """
+    Returns (bin_id, reason) on medicine name
+    """
+    m = bin_map or DEFAULT_BIN_MAP
+    
+    medicine_name = payload.get("name", "").strip().lower()
+    
+    if not medicine_name:
+        return m["default"], "No medicine name provided"
+    
+    if medicine_name in m:
+        return m[medicine_name], f"Medicine: {medicine_name}"
+    
+    for key in m:
+        if key != "default" and key in medicine_name:
+            return m[key], f"Medicine: {medicine_name} (matched: {key})"
+        
+    return m["default"], f"Unknown medicine: {medicine_name}"
+
+
 @app.post("/add-or-update-medicine", response_model=Medicine)
 async def add_or_update_medicine(medicine: Medicine, db=Depends(get_db)):
     """
-    Add a new medicine or update the quantity and bin if it already exists.
+    Add a new medicine or increment the quantity and update bin if it already exists.
     """
+    bin = choose_bin({"name": medicine.name.strip().lower()})[0]
+    medicine.bin = bin  # Update the bin based on the medicine name
+
     existing = await medicines_collection.find_one({"name": medicine.name})
-    
+
     if existing:
-        # Update existing medicine
+        # Increment qty and update bin
         update_result = await medicines_collection.update_one(
             {"name": medicine.name},
-            {"$set": {"bin": medicine.bin, "qty": medicine.qty}}
+            {
+                "$set": {"bin": medicine.bin},
+                "$inc": {"qty": medicine.qty}
+            }
         )
         if update_result.modified_count == 1:
             updated_medicine = await medicines_collection.find_one({"name": medicine.name})
